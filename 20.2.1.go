@@ -12,13 +12,14 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const bufferDrainInterval = 5 * time.Second
+const bufferDrainInterval = 50 * time.Second
 
 const bufferSize = 2
 
@@ -75,11 +76,13 @@ func noNegative(done <-chan bool, input <-chan int) <-chan int {
 				return
 			case i, isChannelOpen := <-input:
 				if !isChannelOpen {
+					log.Printf("Не получается добавть число %v в канал. Канал закрыт.\n", i)
 					return
 				}
 				if i > 0 {
 					select {
 					case noNegativeStream <- i:
+						log.Printf("Стадия фильтрации отрицательных чисел пройдена (число %v).\n", i)
 						if !isChannelOpen {
 							return
 						}
@@ -105,11 +108,13 @@ func filterDividedByThree(done <-chan bool, input <-chan int) <-chan int {
 				return
 			case i, isChannelOpen := <-input:
 				if !isChannelOpen {
+					log.Printf("Не получается добавть число %v в канал. Канал закрыт.\n", i)
 					return
 				}
 				if i%3 == 0 {
 					select {
 					case dividedByThree <- i:
+						log.Printf("Стадия фильтрации чисел, не кратных 3 пройдена (число %v).\n", i)
 						if !isChannelOpen {
 							return
 						}
@@ -133,6 +138,7 @@ func bufferedInt(done <-chan bool, input <-chan int) <-chan int {
 			select {
 			case data := <-input:
 				buffer.Insert(data)
+				log.Printf("Данные добавлены в кольцевой буфер (%v).\n", data)
 			case <-done:
 				return
 			}
@@ -148,6 +154,7 @@ func bufferedInt(done <-chan bool, input <-chan int) <-chan int {
 					for _, data := range bufferData {
 						select {
 						case output <- data:
+							log.Printf("Данные обработаны (%v).\n", data)
 						case <-done:
 							return
 						}
@@ -177,6 +184,7 @@ func main() {
 				data = scanner.Text()
 				if strings.EqualFold(data, "exit") {
 					fmt.Println("Программа завершила работу!")
+					log.Println("Программа завершила работу!")
 					return
 				}
 				i, err := strconv.Atoi(data)
@@ -184,6 +192,7 @@ func main() {
 					fmt.Println("Программа обрабатывает только целые числа!")
 					continue
 				}
+				log.Printf("Передано на обработку число: %v.\n", i)
 				c <- i
 			}
 		}()
